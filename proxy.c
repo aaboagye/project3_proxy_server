@@ -4,7 +4,7 @@
  * Course: COMP 177 Computer Networking
  * Project: Web Proxy
  * Created on: November 15, 2012
- * Last Edited: November 15, 2012
+ * Last Edited: November 16, 2012
  */
 
 #include <sys/types.h>
@@ -28,15 +28,15 @@
 #define DEBUG 1
 
 //Set up the argument parser
-const char *argp_program_version = "swget 1.0";
+const char *argp_program_version = "proxy 1.0";
 const char *argp_program_bug_address = "<aseda.aboagye@gmail.com> or <tan.celena@gmail.com>";
 static char doc[] = "Web Proxy";
 static char args_doc[] = "";  // No standard arguments i.e. arguments without "names"
 
 //Options.  Field 1 in ARGP. Order of fields: {NAME, KEY, ARG, FLAGS, DOC, GROUP}.
 static struct argp_option options[] = {
-		{"port",		'p', 	"Port",     0,  "Port in which is listens on",							0 },
-		{"security",	's', 	"Security", 0,  "Limit incoming connections",			 				0 },
+		{"port",		'p', 	"Port",     0,  "REQUIRED: Port in which is listens on",							0 },
+		{"security",	's', 	"subnet,subnet mask", 0,  "Limit incoming connections",			 				0 },
 		{"verbose",		'v', 	0,          0,  "Provide verbose output, including server headers",	 	0 },
 		{ 0, 			0, 		0, 			0, 	0, 														0 } // Last entry should be all zeros in all fields
 };
@@ -49,10 +49,13 @@ int main(int argc, char **argv) {
 
 	time_t t;
 	time(&t);
-
 	argp_parse (&argp, argc, argv, 0, 0, &arguments);
 
+#if DEBUG
 	printf ("User arguments: \nPort = %i\nSecurity = %s\nVerbose = %s\n", arguments.port, arguments.security, arguments.verbose ? "yes" : "no");
+#endif
+	/* TODO: Write subnet verifer */
+
 
 	/* TODO: This is a list of things that I think we need to do.
 	 *
@@ -92,7 +95,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
     		arguments -> verbose = 1;
     		break;
     	case 'p':
-    		arguments -> port = arg;
+    		arguments -> port = atoi(arg);
     		break;
     	case 's':
     		arguments -> security = arg;
@@ -100,7 +103,8 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
 
     	case ARGP_KEY_END: //Reached the last key.
     		//Check if our url and destdir REQUIRED "options" have been set to non-default values
-    		if (strcmp(arguments -> port, 0) == 0 || strcmp(arguments -> security, "") == 0) {
+    		//if (strcmp(arguments -> port, 0) == 0 || strcmp(arguments -> security, "") == 0) {
+            if (arguments -> port == 0) { //A port number is required.
     			argp_usage (state);
     		}
     		break;
