@@ -1,6 +1,6 @@
 /* Name & E-mail: Celena Tan            tan.celena@gmail.com
  * Name & E-mail: Aseda Aboagye         aseda.aboagye@gmail.com
- * File Name: wProxy.h
+ * File Name: proxy.c
  * Course: COMP 177 Computer Networking
  * Project: Web Proxy
  * Created on: November 15, 2012
