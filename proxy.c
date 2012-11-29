@@ -55,6 +55,9 @@ int main(int argc, char **argv) {
 	while(1) {
 		int status;
 		int sockfd = 0, sockfd_client=0;
+		char response[MAX_BUF_SIZE];
+		char request[MAX_BUF_SIZE];
+
 		struct arguments arguments = { .verbose = 0, .port = 0, .security = "" };
 		struct addrinfo hints;
 		struct addrinfo *res;
@@ -100,7 +103,7 @@ int main(int argc, char **argv) {
 		 */
 
 		//Set up socket (for receiving request)
-		status = getaddrinfo(NULL, argv[1], &hints, &res);
+		status = getaddrinfo(NULL, arguments.port, &hints, &res);
 		//First arg should be the site??
 		//Second arg is the port so argv[2]
 
@@ -156,6 +159,8 @@ int main(int argc, char **argv) {
 		}
 
 		//Call parse_request(); to parse the browser request
+		parse_request(request, &host_info); //Should only give path so we can do
+		//printf("GET path HTTP/1.1");
 
 		//Create own request by calling create_request();
 		//All we need to do is append to the request given or if its not there, create the whole request
@@ -217,11 +222,84 @@ int security (struct host_info *h) { //Check if client IP is in subnet with the 
 	return 0;
 }
 
-void parse_request() {
+static void parse_request(char *request, struct host_info *h) { //parse the broswer request
+	char *it1, *it2;
+	int len;
 
+	it1 = request + 0; //Set the pointer to the beginning of the request
+
+// host
+	for(it2 = it1; *it2 != 0; it2++)
+		if(*it2 == '/')
+			break;
+
+	len = it2 - it1;
+
+// path
+	it1 = it2;
+	for(; *it2 != 0; it2++)	{}
+	len = it2 - it1;
+	h -> path = (char *)malloc(len + 1);
+	strncpy(h -> path, it1, len);
+	h -> path[len] = 0;
+	printf("%s\n", h -> path);
+
+	/*
+	char *it1, *it2;
+	int len;
+	char *addy;
+
+//Get the host from Host
+	it1 = request + 0; //Point to the beginning of the request
+
+	for(it2 = it1; *it2 != 0; it2++)
+		if(*it2 == 'H')
+			if(strncmp(it2, "Host:", 5) == 0) //This means its at the Host header
+				break;
+
+	it2 += 5; //Have it point to the end of Host:_
+	it1 = it2; //Reset it1 to after the Host: header
+
+	for(; *it2 != 0; it2++) //Now look for the end of the line (the NULL byte)
+		if(strncmp(it2, "\r\n", 4) == 0) //This will also include the HTTP/1.1 so we won't need to add that
+				break;
+
+	len = it2 - it1; //Obtain lenth of the host address
+
+	addy = (char *)malloc(len + 1);
+	strncpy(addy, it1, len);
+
+//Get the path from GET
+	it1 = request + 0; //Point to the beginning of the request
+
+	for(it2 = it1; *it2 != 0; it2++)
+		if(*it2 == 'G')
+			if(strncmp(it2, "GET", 3) == 0) //This means its at the GET header
+				break;
+
+	it2 += 4; //Have it point to the end of GET_
+	it1 = it2; //Reset it1 to after GET now
+
+	for(; *it2 != 0; it2++) //Now look for the end of the line (the NULL byte)
+		if(strncmp(it2, "\r\n", 4) == 0)
+			break;
+
+	len = it2 - it1;
+
+	strncat(addy, it1, len); //Add the path to the host
+	addy[len] = 0;
+	return addy; //Addy should contain the host + path. EX: www.google.com/about/
+	*/
 }
 
-int create_request() {
+int create_request(char *request) {
+	//Take out the GET line and add in new GET line
+	//Keep the Host line
+	//Append the rest of the response on except the GET line
+	//Take out the "Proxy-Connection: Close" line
+	//Add the Via header line
+	//Add the X-Forwarded-For header
+
 
 	return 0;
 }
