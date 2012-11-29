@@ -22,7 +22,7 @@
 
 struct arguments {
     int verbose;
-    int port;
+    char *port;
     char *security;
 };
 
@@ -38,5 +38,6 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state);
 
 int security (struct host_info *h);
 
-#endif
+static void parse_request(char *request, struct host_info *h);
 
+#endif
