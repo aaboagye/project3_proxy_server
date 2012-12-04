@@ -4,7 +4,7 @@
  * Course: COMP 177 Computer Networking
  * Project: Web Proxy
  * Created on: November 15, 2012
- * Last Edited: November 15, 2012
+ * Last Edited: December 3, 2012
  */
 
 #ifndef WPROXY_H_
@@ -39,5 +39,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state);
 int security (struct host_info *h);
 
 static void parse_request(char *request, struct host_info *h);
+
+char *create_request(char *request, struct host_info *h);
 
 #endif
