@@ -4,7 +4,7 @@
  * Course: COMP 177 Computer Networking
  * Project: Web Proxy
  * Created on: November 15, 2012
- * Last Edited: November 16, 2012
+ * Last Edited: December 3, 2012
  */
 
 #include <sys/types.h>
@@ -29,6 +29,7 @@
 //#define MAXDATASIZE_buffer 1024*1024
 #define DEBUG 1
 #define QUEUE 10
+#define MAX_DATA_SIZE 1024
 #define MAX_BUF_SIZE 1024
 #define MAX_NAME_SIZE 255
 
@@ -54,17 +55,28 @@ int main(int argc, char **argv) {
 
 	while(1) {
 		int status;
-		int sockfd = 0, sockfd_client=0;
+		int sockfd = 0, sockfd_client = 0, sockfd1 = 0;
+		char nRequest[MAX_DATA_SIZE];
 		char response[MAX_BUF_SIZE];
 		char request[MAX_BUF_SIZE];
 
 		struct arguments arguments = { .verbose = 0, .port = 0, .security = "" };
 		struct addrinfo hints;
 		struct addrinfo *res;
+
+		struct addrinfo peer;
+		struct addrinfo *peerinfo;
+
 		memset(&hints, 0, sizeof hints);
+
 		hints.ai_family = AF_UNSPEC;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_flags = AI_PASSIVE;
+
+	    peer.ai_family = AF_UNSPEC;     //IPv4 or IPv6
+	    peer.ai_socktype = SOCK_STREAM; //TCP stream sockets
+	    peer.ai_flags = AI_CANONNAME;   //Fill in my IP for me
+	    peer.ai_protocol = 0;
 
 		time_t t;
 		time(&t);
@@ -86,13 +98,13 @@ int main(int argc, char **argv) {
 		 * 2. Parse the arguments.													DONE!
 		 * 3. Listen for requests and set up socket.(receiving requests)
 		 *		For extra credit, we can fork() here. (LATER)
-		 * 4. Check to see if security option is set.
+		 * 4. Check to see if security option is set.								1/2 DONE!
 		 *		If so, check to see if client IP is in the given subnet.
 		 *		We can calculate this by looking at the given subnet mask.
-		 * 5. Parse the browser request.
-		 * 6. Create our own request.
-		 * 7. Set up socket for talking to server(web page).
-		 * 8. Send our request to server.
+		 * 5. Parse the browser request.											DONE!
+		 * 6. Create our own request.												DONE!
+		 * 7. Set up socket for talking to server(web page).						DONE!
+		 * 8. Send our request to server.											DONE!
 		 * 9. Receive response from server.
 		 * 10. Parse the response.
 		 * 11. Save data in a small buffer (~64KB)
@@ -164,11 +176,34 @@ int main(int argc, char **argv) {
 
 		//Create own request by calling create_request();
 		//All we need to do is append to the request given or if its not there, create the whole request
+		nRequest = create_request(request, &host_info);
 
 		//Set up socket with the given port and address
+		if ((status = getaddrinfo(host_info.host, arguments.port, &peer, &peerinfo)) != 0) {
+			fprintf(stderr, "Getaddrinfo ERROR1: %s\n", gai_strerror(status)); //GAI
+		    exit(EXIT_FAILURE);
+		}
 
-		//Send()
+		//Creating socket
+		if((sockfd1 = socket(peerinfo -> ai_family, peerinfo -> ai_socktype, peerinfo -> ai_protocol)) < 0){
+		    perror("Socket()");
+		    exit(EXIT_FAILURE);
+		}
 
+		//Connecting to the server
+		if(connect(sockfd1, peerinfo -> ai_addr, peerinfo -> ai_addrlen)) {
+		    perror("Connect()");
+		    exit(EXIT_FAILURE);
+		}
+
+		//Send() to server
+		if(send(sockfd1, nRequest, sizeof(nRequest), 0) == -1) {
+				perror("send()");
+				exit(1);
+		}
+
+		//Receiving response... Read back from server
+		//See what Aseda did last time to read everything in
 		while(1) { //Loop until its done receiving
 			//Receive() and save into MAX_BUF_SIZE();
 
@@ -179,6 +214,7 @@ int main(int argc, char **argv) {
 
 		//Close sockets and free
 		close(sockfd);
+		close(sockfd1);
 		close(sockfd_client);
 		freeaddrinfo(res);
 	}
@@ -292,16 +328,50 @@ static void parse_request(char *request, struct host_info *h) { //parse the bros
 	*/
 }
 
-int create_request(char *request) {
+char *create_request(char *request, struct host_info *h) {
+	//Call this after call parse_request
 	//Take out the GET line and add in new GET line
-	//Keep the Host line
 	//Append the rest of the response on except the GET line
 	//Take out the "Proxy-Connection: Close" line
 	//Add the Via header line
 	//Add the X-Forwarded-For header
+	char nRequest[MAX_DATA_SIZE];
+	char *it1, *it2;
+	int len;
+
+	//Create GET header here
+	strcpy(nRequest, "GET ");
+	strcat(nRequest, h->host);
+	if(h->path[0] != '/')
+		strcat(request, "/");		//In order to not put an extra '/'
+	strcat(nRequest, h->path);
+	strcat(nRequest, " HTTP/1.1\r\n");  //This should take care of the GET line
+										//Now to append the rest of the request
+	it1 = request + 0;
+
+	for(it2 = it1; *it2 != 0; it2++)
+		if(*it2 == 'H')
+			if(strncmp(it2, "Host:", 5) == 0) //This means its at the Host header
+				break;
+
+	it1 = it2; //Reset it1 to the begin at Host since we dont want their GET
+
+	for(; *it2 != 0; it2++) {} //Now to the end of the request
+
+	len = it2 - it1;
+
+	strncat(nRequest, it1, len);
+
+	strcat(nRequest, "Via: "); //Via: the protocol version, proxy IP, and proxy name
+	strcat(nRequest, ); //We need to somehow get our IP and insert here
+	strcat(nRequest, "\r\n");
+
+	strcat(nRequest, "X-Forwarded-For: "); //X-Forwarded-For: Client IP
+	strcat(nRequest, h->ip);
+	strcat(nRequest, "\r\n");
 
 
-	return 0;
+	return nRequest;
 }
 
 void parse_response() {
