@@ -22,7 +22,7 @@
 
 struct arguments {
     int verbose;
-    char* port;
+    char *port;
     char *security;
 };
 
@@ -38,8 +38,10 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state);
 
 int security (struct host_info *h);
 
+int sendall(int s, char *buf, int *len);
+
 static void parse_request(char *request, struct host_info *h);
 
-char *create_request(char *request, struct host_info *h, struct addrinfo *a);
+char *create_request(char *request, char *nRequest, struct host_info *h, struct addrinfo *a);
 
 #endif
