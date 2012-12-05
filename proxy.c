@@ -234,7 +234,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
     		arguments -> verbose = 1;
     		break;
     	case 'p':
-    		arguments -> port = atoi(arg);
+    		arguments -> port = /*atoi*/(arg);
     		break;
     	case 's':
     		arguments -> security = arg;

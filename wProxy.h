@@ -22,7 +22,7 @@
 
 struct arguments {
     int verbose;
-    char *port;
+    char* port;
     char *security;
 };
 
