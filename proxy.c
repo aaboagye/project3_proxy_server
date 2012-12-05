@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 	while(1) {
 		int status;
 		int sockfd = 0, sockfd_client = 0, sockfd1 = 0;
-		char *nRequest;
+		char *nRequest = malloc(MAX_BUF_SIZE);
 		char response[MAX_BUF_SIZE];
 		char request[MAX_BUF_SIZE];
 
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
 		time(&t);
 
 		//Parse our arguments; every option seen by parse_opt will be reflected in arguments
-		struct host_info host_info = { .host = "", .path = "", .port = 80 }; // Default values
+		struct host_info host_info = { .host = "", .path = "", .port = 80 , .ip = ""}; // Default values
 
 		argp_parse (&argp, argc, argv, 0, 0, &arguments);
 
@@ -158,45 +158,48 @@ int main(int argc, char **argv) {
 		}
 
 		//If security is checked
-		if(arguments.security == 1) {
-			//call security();
-			//use getaddrinfo to get clients IP address
-			//use subnet mask given
-			//use subnet address given
-		}
+		// if(arguments.security == 1) {
+		// 	//call security();
+		// 	//use getaddrinfo to get clients IP address
+		// 	//use subnet mask given
+		// 	//use subnet address given
+		// }
 
-		if(arguments.security == 0) {
-			//If no security check, proceed on
-		}
+		// if(arguments.security == 0) {
+		// 	//If no security check, proceed on
+		// }
 
 		//Call parse_request(); to parse the browser request
 		parse_request(request, &host_info); //Should only give path so we can do
 		//printf("GET path HTTP/1.1");
 
+		printf("parsed request.\n");
 		//Create own request by calling create_request();
 		//All we need to do is append to the request given or if its not there, create the whole request
-		nRequest = create_request(request, &host_info, &hints);
-
+		// nRequest = create_request(request, nRequest, &host_info, &hints);
+		strcpy(nRequest,create_request(request, nRequest, &host_info, &hints));
 		//Malloc nRequest
-
+		printf("request created\n");
 		//Set up socket with the given port and address
 		if ((status = getaddrinfo(host_info.host, arguments.port, &peer, &peerinfo)) != 0) {
 			fprintf(stderr, "Getaddrinfo ERROR1: %s\n", gai_strerror(status)); //GAI
 		    exit(EXIT_FAILURE);
 		}
-
+		printf("getaddrinfo succeede\n");
 		//Creating socket
 		if((sockfd1 = socket(peerinfo -> ai_family, peerinfo -> ai_socktype, peerinfo -> ai_protocol)) < 0){
 		    perror("Socket()");
 		    exit(EXIT_FAILURE);
 		}
 
+		printf("socket established\n");
 		//Connecting to the server
 		if(connect(sockfd1, peerinfo -> ai_addr, peerinfo -> ai_addrlen)) {
 		    perror("Connect()");
 		    exit(EXIT_FAILURE);
 		}
 
+		printf("connection established\n");
 		//Send() to server
 		if(send(sockfd1, nRequest, sizeof(nRequest), 0) == -1) {
 				perror("send()");
@@ -218,6 +221,7 @@ int main(int argc, char **argv) {
 		close(sockfd1);
 		close(sockfd_client);
 		freeaddrinfo(res);
+		free(nRequest);
 	}
 	return (0);
 }
@@ -329,14 +333,13 @@ static void parse_request(char *request, struct host_info *h) { //parse the bros
 	*/
 }
 
-char *create_request(char *request, struct host_info *h, struct addrinfo *a) {
+char *create_request(char *request, char *nRequest, struct host_info *h, struct addrinfo *a) {
 	//Call this after call parse_request
 	//Take out the GET line and add in new GET line
 	//Append the rest of the response on except the GET line
 	//Take out the "Proxy-Connection: Close" line
 	//Add the Via header line
 	//Add the X-Forwarded-For header
-	char nRequest[MAX_DATA_SIZE];
 	char *it1, *it2;
 	int len;
 
@@ -364,7 +367,7 @@ char *create_request(char *request, struct host_info *h, struct addrinfo *a) {
 	strncat(nRequest, it1, len);
 
 	strcat(nRequest, "Via: "); //Via: the protocol version, proxy IP, and proxy name
-	strcat(nRequest, a->ai_canonname); //We need to somehow get our IP and insert here
+	// strcat(nRequest, a->ai_canonname); //We need to somehow get our IP and insert here
 	strcat(nRequest, "\r\n");
 
 	strcat(nRequest, "X-Forwarded-For: "); //X-Forwarded-For: Client IP
