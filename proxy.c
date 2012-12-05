@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 	while(1) {
 		int status;
 		int sockfd = 0, sockfd_client = 0, sockfd1 = 0;
-		char nRequest[MAX_DATA_SIZE];
+		char *nRequest;
 		char response[MAX_BUF_SIZE];
 		char request[MAX_BUF_SIZE];
 
@@ -87,26 +87,25 @@ int main(int argc, char **argv) {
 		argp_parse (&argp, argc, argv, 0, 0, &arguments);
 
 #if DEBUG
-	printf ("User arguments: \nPort = %i\nSecurity = %s\nVerbose = %s\n", arguments.port, arguments.security, arguments.verbose ? "yes" : "no");
+	printf ("User arguments: \nPort = %s\nSecurity = %s\nVerbose = %s\n", arguments.port, arguments.security, arguments.verbose ? "yes" : "no");
 #endif
 		/* TODO: Write subnet verifer */
-
 
 		/* TODO: This is a list of things that I think we need to do.
 		 *
 		 * 1. Set up the argument parser. (argp stuff)								DONE!
 		 * 2. Parse the arguments.													DONE!
 		 * 3. Listen for requests and set up socket.(receiving requests)
-		 *		For extra credit, we can fork() here. (LATER)
+		 *		For extra credit, we cans fork() here. (LATER)
 		 * 4. Check to see if security option is set.								1/2 DONE!
 		 *		If so, check to see if client IP is in the given subnet.
 		 *		We can calculate this by looking at the given subnet mask.
 		 * 5. Parse the browser request.											DONE!
 		 * 6. Create our own request.												DONE!
 		 * 7. Set up socket for talking to server(web page).						DONE!
-		 * 8. Send our request to server.											DONE!
-		 * 9. Receive response from server.
-		 * 10. Parse the response.
+		 * 8. Send our request to server											DONE!
+		 * 9. Receive response from server
+		 * 10. Parse the response
 		 * 11. Save data in a small buffer (~64KB)
 		 * 12. Send contents of buffer to web browser via the listening socket
 		 * 13. Goto step 9 until server has nothing left to send
@@ -176,7 +175,9 @@ int main(int argc, char **argv) {
 
 		//Create own request by calling create_request();
 		//All we need to do is append to the request given or if its not there, create the whole request
-		nRequest = create_request(request, &host_info);
+		nRequest = create_request(request, &host_info, &hints);
+
+		//Malloc nRequest
 
 		//Set up socket with the given port and address
 		if ((status = getaddrinfo(host_info.host, arguments.port, &peer, &peerinfo)) != 0) {
@@ -328,7 +329,7 @@ static void parse_request(char *request, struct host_info *h) { //parse the bros
 	*/
 }
 
-char *create_request(char *request, struct host_info *h) {
+char *create_request(char *request, struct host_info *h, struct addrinfo *a) {
 	//Call this after call parse_request
 	//Take out the GET line and add in new GET line
 	//Append the rest of the response on except the GET line
@@ -363,7 +364,7 @@ char *create_request(char *request, struct host_info *h) {
 	strncat(nRequest, it1, len);
 
 	strcat(nRequest, "Via: "); //Via: the protocol version, proxy IP, and proxy name
-	strcat(nRequest, ); //We need to somehow get our IP and insert here
+	strcat(nRequest, a->ai_canonname); //We need to somehow get our IP and insert here
 	strcat(nRequest, "\r\n");
 
 	strcat(nRequest, "X-Forwarded-For: "); //X-Forwarded-For: Client IP
