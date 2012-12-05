@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
 
 
 	while(1) {
-		int status;
+		int status, len;
+		int optval = 1;
 		int sockfd = 0, sockfd_client = 0, sockfd1 = 0;
 		char *nRequest = malloc(MAX_BUF_SIZE);
 		char response[MAX_BUF_SIZE];
@@ -118,9 +119,8 @@ int main(int argc, char **argv) {
 		//First arg should be the site??
 		//Second arg is the port so argv[2]
 
-
 		if(status !=0){
-			fprintf(stderr, "getaddrinfo ERROR: %s\n",gai_strerror(status));
+			fprintf(stderr, "getaddrinfo ERROR: %s\n", gai_strerror(status));
 			return 1;
 		}
 
@@ -132,7 +132,6 @@ int main(int argc, char **argv) {
 		}	/* rerun the server immediately after we kill it otherwise we have to wait about 20 secs.
 			 * Eliminates "ERROR on binding: Address already in use" error. */
 
-		int optval = 1;
 		setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval , sizeof(int));
 		status = bind(sockfd, res->ai_addr, res->ai_addrlen);
 
@@ -152,11 +151,13 @@ int main(int argc, char **argv) {
 		struct sockaddr_storage their_addr;
 		socklen_t addr_size = sizeof their_addr;
 		sockfd_client = accept(sockfd, (struct sockaddr *) &their_addr, &addr_size);
+
 		if(sockfd_client == -1){
 			perror("server: accept");
 			return 1;
 		}
 
+		//IMPLEMENT SECURITY AT THE END SINCE ITS ONLY WORTH 4 POINTS
 		//If security is checked
 		// if(arguments.security == 1) {
 		// 	//call security();
@@ -171,49 +172,49 @@ int main(int argc, char **argv) {
 
 		//Call parse_request(); to parse the browser request
 		parse_request(request, &host_info); //Should only give path so we can do
-		//printf("GET path HTTP/1.1");
 
-		printf("parsed request.\n");
 		//Create own request by calling create_request();
-		//All we need to do is append to the request given or if its not there, create the whole request
-		// nRequest = create_request(request, nRequest, &host_info, &hints);
-		strcpy(nRequest,create_request(request, nRequest, &host_info, &hints));
-		//Malloc nRequest
-		printf("request created\n");
+		strcpy(nRequest, create_request(request, nRequest, &host_info, &hints));
+
+		printf("Request created\n");
+
 		//Set up socket with the given port and address
 		if ((status = getaddrinfo(host_info.host, arguments.port, &peer, &peerinfo)) != 0) {
 			fprintf(stderr, "Getaddrinfo ERROR1: %s\n", gai_strerror(status)); //GAI
 		    exit(EXIT_FAILURE);
 		}
-		printf("getaddrinfo succeede\n");
+
+		printf("Getaddrinfo succeeded\n");
+
 		//Creating socket
 		if((sockfd1 = socket(peerinfo -> ai_family, peerinfo -> ai_socktype, peerinfo -> ai_protocol)) < 0){
 		    perror("Socket()");
 		    exit(EXIT_FAILURE);
 		}
 
-		printf("socket established\n");
+		printf("Socket established\n");
+
 		//Connecting to the server
 		if(connect(sockfd1, peerinfo -> ai_addr, peerinfo -> ai_addrlen)) {
 		    perror("Connect()");
 		    exit(EXIT_FAILURE);
 		}
 
-		printf("connection established\n");
+		printf("Connection established\n");
+
+		len = strlen(nRequest);
+
 		//Send() to server
-		if(send(sockfd1, nRequest, sizeof(nRequest), 0) == -1) {
-				perror("send()");
-				exit(1);
+		if (sendall(sockfd1, nRequest, &len) == -1) {
+		    perror("Sendall()");
+		    printf("We only sent %d bytes because of the error!\n", len);
 		}
 
 		//Receiving response... Read back from server
-		//See what Aseda did last time to read everything in
 		while(1) { //Loop until its done receiving
 			//Receive() and save into MAX_BUF_SIZE();
-
 			//Call parse_response();
-
-			//send buffer to web browser via listening socket
+			//Send buffer to web browser via listening socket
 		}
 
 		//Close sockets and free
@@ -238,7 +239,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
     		arguments -> verbose = 1;
     		break;
     	case 'p':
-    		arguments -> port = /*atoi*/(arg);
+    		arguments -> port = arg;
     		break;
     	case 's':
     		arguments -> security = arg;
@@ -256,6 +257,23 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
     		return ARGP_ERR_UNKNOWN;
 	}
 	return 0;
+}
+
+int sendall(int s, char *buf, int *len) {
+    int total = 0;        	// how many bytes we've sent
+    int bytesleft = *len; 	// how many we have left to send
+    int n;
+
+    while(total < *len) {
+        n = send(s, buf+total, bytesleft, 0);
+        if (n == -1) { break; }
+        total += n;
+        bytesleft -= n;
+    }
+
+    *len = total; // return number actually sent here
+
+    return n == -1?-1:0; // return -1 on failure, 0 on success
 }
 
 int security (struct host_info *h) { //Check if client IP is in subnet with the subnet mask
@@ -284,64 +302,17 @@ static void parse_request(char *request, struct host_info *h) { //parse the bros
 	strncpy(h -> path, it1, len);
 	h -> path[len] = 0;
 	printf("%s\n", h -> path);
-
-	/*
-	char *it1, *it2;
-	int len;
-	char *addy;
-
-//Get the host from Host
-	it1 = request + 0; //Point to the beginning of the request
-
-	for(it2 = it1; *it2 != 0; it2++)
-		if(*it2 == 'H')
-			if(strncmp(it2, "Host:", 5) == 0) //This means its at the Host header
-				break;
-
-	it2 += 5; //Have it point to the end of Host:_
-	it1 = it2; //Reset it1 to after the Host: header
-
-	for(; *it2 != 0; it2++) //Now look for the end of the line (the NULL byte)
-		if(strncmp(it2, "\r\n", 4) == 0) //This will also include the HTTP/1.1 so we won't need to add that
-				break;
-
-	len = it2 - it1; //Obtain lenth of the host address
-
-	addy = (char *)malloc(len + 1);
-	strncpy(addy, it1, len);
-
-//Get the path from GET
-	it1 = request + 0; //Point to the beginning of the request
-
-	for(it2 = it1; *it2 != 0; it2++)
-		if(*it2 == 'G')
-			if(strncmp(it2, "GET", 3) == 0) //This means its at the GET header
-				break;
-
-	it2 += 4; //Have it point to the end of GET_
-	it1 = it2; //Reset it1 to after GET now
-
-	for(; *it2 != 0; it2++) //Now look for the end of the line (the NULL byte)
-		if(strncmp(it2, "\r\n", 4) == 0)
-			break;
-
-	len = it2 - it1;
-
-	strncat(addy, it1, len); //Add the path to the host
-	addy[len] = 0;
-	return addy; //Addy should contain the host + path. EX: www.google.com/about/
-	*/
 }
 
 char *create_request(char *request, char *nRequest, struct host_info *h, struct addrinfo *a) {
-	//Call this after call parse_request
+	//Call this after call parse_request, parse_request gets the hostname
 	//Take out the GET line and add in new GET line
 	//Append the rest of the response on except the GET line
-	//Take out the "Proxy-Connection: Close" line
+	//TODO: Take out the "Proxy-Connection: Close" line
 	//Add the Via header line
 	//Add the X-Forwarded-For header
 	char *it1, *it2;
-	int len;
+	int count = 0, len;
 
 	//Create GET header here
 	strcpy(nRequest, "GET ");
@@ -360,14 +331,37 @@ char *create_request(char *request, char *nRequest, struct host_info *h, struct 
 
 	it1 = it2; //Reset it1 to the begin at Host since we dont want their GET
 
+	for(; *it2 != 0; it2++) {
+		if(*it2 == 'P') {
+			if(strncmp(it2, "Proxy-Connection:", 17) == 0) { //We need to take this header out
+				count++;
+				break;
+			}
+		}
+	}
+
+	len = it2 - it1;
+	strncat(nRequest, it1, len); //Copy everything from Host to before the Proxy-Connection
+
+	//If there was a Proxy-Connection header, it should've broke out of the for loop
+	if(count > 0) {
+		for(; *it2 != 0; it2++) {
+			if(strncmp(it2, "\r\n", 2) == 0) { //Now look for the end of the Proxy-Connection header & skip over it
+				break;
+			}
+		}
+
+		it2 += 4; //Reinitialize the pointer to after the \r\n
+		it1 = it2;
+	}
+
 	for(; *it2 != 0; it2++) {} //Now to the end of the request
 
 	len = it2 - it1;
-
 	strncat(nRequest, it1, len);
 
 	strcat(nRequest, "Via: "); //Via: the protocol version, proxy IP, and proxy name
-	// strcat(nRequest, a->ai_canonname); //We need to somehow get our IP and insert here
+	strcat(nRequest, a->ai_canonname); //We need to somehow get our IP and insert here
 	strcat(nRequest, "\r\n");
 
 	strcat(nRequest, "X-Forwarded-For: "); //X-Forwarded-For: Client IP
