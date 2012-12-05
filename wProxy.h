@@ -40,6 +40,6 @@ int security (struct host_info *h);
 
 static void parse_request(char *request, struct host_info *h);
 
-char *create_request(char *request, struct host_info *h, struct addrinfo *a);
+char *create_request(char *request, char *nRequest, struct host_info *h, struct addrinfo *a);
 
 #endif
