@@ -287,42 +287,66 @@ static void parse_request(char *request, struct host_info *h) { //parse the bros
 
 	it1 = request + 0; //Set the pointer to the beginning of the request
 
-// host
+// Path
 	for(it2 = it1; *it2 != 0; it2++)
-		if(*it2 == '/')
+		if(*it2 == 'G')
+			if(strncmp(it2, "GET", 3) == 0) //This means its at GET header
+				break;
+
+	it2 += 4;
+	it1 = it2;
+
+	for(; *it2 != 0; it2++)
+		if(strncmp(it2, "\r\n", 2) == 0)
 			break;
 
-	len = it2 - it1;
-
-// path
-	it1 = it2;
-	for(; *it2 != 0; it2++)	{}
 	len = it2 - it1;
 	h -> path = (char *)malloc(len + 1);
 	strncpy(h -> path, it1, len);
 	h -> path[len] = 0;
-	printf("%s\n", h -> path);
+
+// Host
+	it1 = request + 0; //Point it back to the beginning
+	for(it2 = it1; *it2 != 0; it2++)
+		if(*it2 == 'H')
+			if(strncmp(it2, "Host:", 5) == 0) //This means its at the Host header
+				break;
+
+	it2 += 5;
+	it1 = it2;
+
+	for(; *it2 != 0; it2++)
+		if(strncmp(it2, "\r\n", 2) == 0)
+			break;
+
+	len = it2 - it1;
+
+	h -> host = (char *)malloc(len + 1);
+	strncpy(h -> host, it1, len);
+	h -> host[len] = 0;
 }
 
 char *create_request(char *request, char *nRequest, struct host_info *h, struct addrinfo *a) {
 	//Call this after call parse_request, parse_request gets the hostname
 	//Take out the GET line and add in new GET line
 	//Append the rest of the response on except the GET line
-	//TODO: Take out the "Proxy-Connection: Close" line
 	//Add the Via header line
 	//Add the X-Forwarded-For header
 	char *it1, *it2;
-	int count = 0, len;
+	int count = 0, len, pLen;
 
 	//Create GET header here
 	strcpy(nRequest, "GET ");
+	if(h->host[0] != 'h')
+		strcat(nRequest, "http://");
 	strcat(nRequest, h->host);
 	if(h->path[0] != '/')
 		strcat(request, "/");		//In order to not put an extra '/'
 	strcat(nRequest, h->path);
 	strcat(nRequest, " HTTP/1.1\r\n");  //This should take care of the GET line
 										//Now to append the rest of the request
-	it1 = request + 0;
+	pLen = strlen(h->path);
+	it1 = request + 4 + pLen + 9; //GET + path + HTTP/1.1
 
 	for(it2 = it1; *it2 != 0; it2++)
 		if(*it2 == 'H')
@@ -340,6 +364,7 @@ char *create_request(char *request, char *nRequest, struct host_info *h, struct 
 		}
 	}
 
+	it2--;
 	len = it2 - it1;
 	strncat(nRequest, it1, len); //Copy everything from Host to before the Proxy-Connection
 
@@ -351,11 +376,9 @@ char *create_request(char *request, char *nRequest, struct host_info *h, struct 
 			}
 		}
 
-		it2 += 4; //Reinitialize the pointer to after the \r\n
+		it2 += 5; //Reinitialize the pointer to after the \r\n
 		it1 = it2;
 	}
-
-	for(; *it2 != 0; it2++) {} //Now to the end of the request
 
 	len = it2 - it1;
 	strncat(nRequest, it1, len);
@@ -367,7 +390,6 @@ char *create_request(char *request, char *nRequest, struct host_info *h, struct 
 	strcat(nRequest, "X-Forwarded-For: "); //X-Forwarded-For: Client IP
 	strcat(nRequest, h->ip);
 	strcat(nRequest, "\r\n");
-
 
 	return nRequest;
 }
