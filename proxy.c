@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
 		char *nRequest = malloc(MAX_BUF_SIZE);
 		char response[MAX_BUF_SIZE];
 		char request[MAX_BUF_SIZE];
+		char *hostname = malloc(MAX_NAME_SIZE);
 
 		struct arguments arguments = { .verbose = 0, .port = 0, .security = "" };
 		struct addrinfo hints;
@@ -74,10 +75,11 @@ int main(int argc, char **argv) {
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_flags = AI_PASSIVE;
 
-	    peer.ai_family = AF_UNSPEC;     //IPv4 or IPv6
-	    peer.ai_socktype = SOCK_STREAM; //TCP stream sockets
-	    peer.ai_flags = AI_CANONNAME;   //Fill in my IP for me
-	    peer.ai_protocol = 0;
+		memset(&peer, 0, sizeof peer);
+		peer.ai_family = AF_UNSPEC;     //IPv4 or IPv6
+		peer.ai_socktype = SOCK_STREAM; //TCP stream sockets
+		peer.ai_flags = AI_CANONNAME;   //Fill in my IP for me
+		peer.ai_protocol = 0;
 
 		time_t t;
 		time(&t);
@@ -115,7 +117,8 @@ int main(int argc, char **argv) {
 		 */
 
 		//Set up socket (for receiving request)
-		status = getaddrinfo(NULL, arguments.port, &hints, &res);
+		gethostname(hostname, sizeof(hostname));
+		status = getaddrinfo(hostname, arguments.port, &hints, &res);
 		//First arg should be the site??
 		//Second arg is the port so argv[2]
 
@@ -169,6 +172,8 @@ int main(int argc, char **argv) {
 		// if(arguments.security == 0) {
 		// 	//If no security check, proceed on
 		// }
+
+		recv(sockfd_client, request, sizeof(request), 0);
 
 		//Call parse_request(); to parse the browser request
 		parse_request(request, &host_info); //Should only give path so we can do
@@ -343,7 +348,8 @@ char *create_request(char *request, char *nRequest, struct host_info *h, struct 
 	if(h->path[0] != '/')
 		strcat(request, "/");		//In order to not put an extra '/'
 	strcat(nRequest, h->path);
-	strcat(nRequest, " HTTP/1.1\r\n");  //This should take care of the GET line
+	// strcat(nRequest, " HTTP/1.1\r\n");  //This should take care of the GET line
+	strcat(nRequest, "\r\n");
 										//Now to append the rest of the request
 	pLen = strlen(h->path);
 	it1 = request + 4 + pLen + 9; //GET + path + HTTP/1.1
@@ -384,6 +390,7 @@ char *create_request(char *request, char *nRequest, struct host_info *h, struct 
 	strncat(nRequest, it1, len);
 
 	strcat(nRequest, "Via: "); //Via: the protocol version, proxy IP, and proxy name
+
 	strcat(nRequest, a->ai_canonname); //We need to somehow get our IP and insert here
 	strcat(nRequest, "\r\n");
 
